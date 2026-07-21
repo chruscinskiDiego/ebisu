@@ -10,6 +10,9 @@
   "type": "module",
   "scripts": {
     "start": "npx @langchain/langgraph-cli dev",
+    "debug": "NODE_OPTIONS=\"--inspect=9229\" npx @langchain/langgraph-cli dev",
+    "debug:brk": "NODE_OPTIONS=\"--inspect-brk=9229\" npx @langchain/langgraph-cli dev",
+    "debug:invoke": "tsx scripts/debugGraphInvoke.ts",
     "build": "tsc",
     "clean": "rm -rf dist",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --testPathPattern=\\.test\\.ts$ --testPathIgnorePatterns=\\.int\\.test\\.ts$",

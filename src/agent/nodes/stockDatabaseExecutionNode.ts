@@ -52,6 +52,8 @@ export const createStockDatabaseExecutionNode = (llm: OpenRouterService) => {
                 databaseExecutionResult: formatDatabaseExecutionResult(result),
                 missingStockFields: result.missingStockFields,
             };
+
+            
         } catch (error: any) {
             return {
                 error: `Falha ao executar operacao de stocks no Postgres: ${error.message}`,
