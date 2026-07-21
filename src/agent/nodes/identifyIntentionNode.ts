@@ -1,6 +1,6 @@
-import { getSystemPrompt, IdentifyIntentionSchema } from '../../prompts/v1/identifyIntention.ts';
+import { getSystemPrompt as getIntentionSystemPrompt, IdentifyIntentionSchema } from '../../prompts/v1/identifyIntention.ts';
 import { OpenRouterService } from '../../services/openrouterService.ts';
-import { GraphState, Intention } from '../schemas/message.schema.ts';
+import { GraphState } from '../schemas/message.schema.ts';
 
 const getMessageText = (content: unknown): string => {
   if (typeof content === 'string') return content;
@@ -23,6 +23,19 @@ const getMessageText = (content: unknown): string => {
   }
 
   return '';
+};
+
+const getRecentConversationText = (messages: GraphState['messages']): string => {
+  return messages
+    .slice(-8)
+    .map((message) => {
+      const role = message._getType() === 'human' ? 'usuario' : 'assistente';
+      const text = getMessageText(message.content).trim();
+
+      return text ? `${role}: ${text}` : '';
+    })
+    .filter(Boolean)
+    .join('\n');
 };
 
 export const createIdentifyIntentionNode = (llm: OpenRouterService) => {
@@ -51,11 +64,15 @@ export const createIdentifyIntentionNode = (llm: OpenRouterService) => {
         };
       }
 
-      const systemPrompt = getSystemPrompt();
+      const systemPrompt = getIntentionSystemPrompt();
+      const recentConversation = getRecentConversationText(state.messages);
 
       const { data, error } = await llm.generateStructured(
         systemPrompt,
-        question,
+        JSON.stringify({
+          currentMessage: question,
+          recentConversation,
+        }),
         IdentifyIntentionSchema,
       )
 
@@ -67,15 +84,14 @@ export const createIdentifyIntentionNode = (llm: OpenRouterService) => {
         }
       }
 
-      console.log(JSON.stringify(data, null, 2));
-
       return {
         question,
         intention: data?.intention,
         intentionReason: data?.reasoning,
         error: undefined,
         databaseExecutionType: data?.databaseExecutionType,
-        financialActions: data?.financialActions,
+        stocks: data?.stocks,
+        userProfileUpdate: data?.userProfileUpdate,
       };
 
     } catch (error: any) {

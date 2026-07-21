@@ -3,6 +3,7 @@ export const config = {
   httpReferer: process.env.OPENROUTER_HTTP_REFERER ?? '',
   xTitle: process.env.OPENROUTER_X_TITLE ?? 'IA Devs - Sales Analytics Reporter',
   models: [
+    //'nvidia/llama-nemotron-rerank-vl-1b-v2:free'
     'cohere/north-mini-code:free',
   ],
   provider: {

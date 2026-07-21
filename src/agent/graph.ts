@@ -2,17 +2,21 @@ import { END, START, StateGraph } from "@langchain/langgraph";
 import { EbisuStateSchema } from "./schemas/message.schema.js";
 import type { GraphState } from "./schemas/message.schema.js";
 import { createIdentifyIntentionNode } from "./nodes/identifyIntentionNode.js";
-import { createFinancialActionDatabaseExecutionNode } from "./nodes/financialActionDatabaseExecutionNode.js";
+import { createStockDatabaseExecutionNode } from "./nodes/stockDatabaseExecutionNode.js";
 import { createGetRealTimeMarketShareNode } from "./nodes/getRealTimeMarketShareNode.js";
 import { createStructuredResponseNode } from "./nodes/structuredResponseNode.js";
 import { OpenRouterService } from "../services/openrouterService.js";
+import { createUserMemoryNode } from "./nodes/userMemoryNode.js";
 
-const routeAfterIdentifyIntention = (state: GraphState) => {
+const routeAfterUserMemory = (state: GraphState) => {
   if (state.error) return 'structuredResponse';
+  if (state.missingUserFields?.length) return 'structuredResponse';
 
   switch (state.intention) {
-    case 'databaseExecution':
-      return 'financialActionDatabaseExecution';
+    case 'stockDatabaseExecution':
+      return 'stockDatabaseExecution';
+    case 'userDatabaseExecution':
+      return 'structuredResponse';
     case 'realTimeMarketShare':
       return 'getRealTimeMarketShare';
     default:
@@ -26,14 +30,17 @@ export const buildEbisuGraph = (llm: OpenRouterService) => {
     stateSchema: EbisuStateSchema,
   })
     .addNode('identifyIntention', createIdentifyIntentionNode(llm))
-    .addNode('financialActionDatabaseExecution', createFinancialActionDatabaseExecutionNode(llm))
+    .addNode('userMemory', createUserMemoryNode())
+    .addNode('stockDatabaseExecution', createStockDatabaseExecutionNode(llm))
     .addNode('getRealTimeMarketShare', createGetRealTimeMarketShareNode())
     .addNode('structuredResponse', createStructuredResponseNode(llm))
 
     .addEdge(START, 'identifyIntention')
-    .addConditionalEdges('identifyIntention', routeAfterIdentifyIntention)
+    .addEdge('identifyIntention', 'userMemory')
+    .addConditionalEdges('userMemory', routeAfterUserMemory)
 
-    .addEdge('financialActionDatabaseExecution', 'structuredResponse')
+    .addEdge('stockDatabaseExecution', 'structuredResponse')
+
     .addEdge('getRealTimeMarketShare', 'structuredResponse')
     .addEdge('structuredResponse', END);
 

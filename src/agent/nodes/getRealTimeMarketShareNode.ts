@@ -10,7 +10,7 @@ export const createGetRealTimeMarketShareNode = () => {
 
         return {
             realTimeMarketShareResult:
-                `Fluxo de market share em tempo real selecionado para: ${state.question}. Acoes financeiras: ${JSON.stringify(state.financialActions ?? [])}`,
+                `Fluxo de market share em tempo real selecionado para: ${state.question}. Stocks: ${JSON.stringify(state.stocks ?? [])}`,
         };
     };
 };

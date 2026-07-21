@@ -1,9 +1,9 @@
 import { GraphState } from "../schemas/message.schema";
-import { FinancialActionService } from "../../services/financialActionService.ts";
+import { StockService } from "../../services/stockService.ts";
 import { OpenRouterService } from "../../services/openrouterService.ts";
 
 const formatDatabaseExecutionResult = (
-    result: Awaited<ReturnType<FinancialActionService['execute']>>,
+    result: Awaited<ReturnType<StockService['execute']>>,
 ): string => {
     return JSON.stringify({
         operation: result.operation,
@@ -11,18 +11,25 @@ const formatDatabaseExecutionResult = (
         summary: result.summary,
         query: result.query,
         affected: result.affected,
-        missingNames: result.missingNames,
+        missingSymbols: result.missingSymbols,
+        missingStockFields: result.missingStockFields,
+        insertedSymbols: result.insertedSymbols,
+        updatedSymbols: result.updatedSymbols,
         rows: result.rows,
         records: result.records?.map((record) => ({
             id: record.id,
+            symbol: record.symbol,
             name: record.name,
-            marketShare: record.marketShare,
+            exchange: record.exchange,
+            investmentAmount: record.investmentAmount,
+            country: record.country,
+            currency: record.currency,
         })),
     });
 };
 
-export const createFinancialActionDatabaseExecutionNode = (llm: OpenRouterService) => {
-    const financialActionService = new FinancialActionService(llm);
+export const createStockDatabaseExecutionNode = (llm: OpenRouterService) => {
+    const stockService = new StockService(llm);
 
     return async (state: GraphState): Promise<Partial<GraphState>> => {
         if (!state.question) {
@@ -34,19 +41,20 @@ export const createFinancialActionDatabaseExecutionNode = (llm: OpenRouterServic
         const databaseExecutionType = state.databaseExecutionType ?? 'select';
 
         try {
-            const result = await financialActionService.execute(
+            const result = await stockService.execute(
                 databaseExecutionType,
                 state.question,
-                state.financialActions ?? [],
+                state.stocks ?? [],
             );
 
             return {
                 databaseExecutionType,
                 databaseExecutionResult: formatDatabaseExecutionResult(result),
+                missingStockFields: result.missingStockFields,
             };
         } catch (error: any) {
             return {
-                error: `Falha ao executar operacao de financialActions no Postgres: ${error.message}`,
+                error: `Falha ao executar operacao de stocks no Postgres: ${error.message}`,
             };
         }
     };

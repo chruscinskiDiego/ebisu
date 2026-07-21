@@ -1,8 +1,9 @@
 import 'reflect-metadata';
 import { DataSource } from 'typeorm';
 import { config } from '../config.ts';
-import { FinancialActionEntitySchema } from './entities/financialAction.entity.ts';
-import { CreateFinancialActions1720000000000 } from './migrations/1720000000000-CreateFinancialActions.ts';
+import { StockEntitySchema } from './entities/stock.entity.ts';
+import { UserEntitySchema } from './entities/user.entity.ts';
+import { CreateUsersAndStocks1720000001000 } from './migrations/1720000001000-CreateUsersAndStocks.ts';
 
 export const AppDataSource = new DataSource({
   type: 'postgres',
@@ -19,8 +20,8 @@ export const AppDataSource = new DataSource({
   synchronize: config.postgres.synchronize,
   logging: config.postgres.logging,
   migrationsRun: config.postgres.migrationsRun,
-  entities: [FinancialActionEntitySchema],
-  migrations: [CreateFinancialActions1720000000000],
+  entities: [StockEntitySchema, UserEntitySchema],
+  migrations: [CreateUsersAndStocks1720000001000],
   subscribers: [],
 });
 
