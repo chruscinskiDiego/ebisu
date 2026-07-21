@@ -1,4 +1,6 @@
-import { GraphState } from '../schemas/message.schema.ts';
+import { getSystemPrompt, IdentifyIntentionSchema } from '../../prompts/v1/identifyIntention.ts';
+import { OpenRouterService } from '../../services/openrouterService.ts';
+import { GraphState, Intention } from '../schemas/message.schema.ts';
 
 const getMessageText = (content: unknown): string => {
   if (typeof content === 'string') return content;
@@ -23,7 +25,7 @@ const getMessageText = (content: unknown): string => {
   return '';
 };
 
-export const createIdentifyIntentionNode = () => {
+export const createIdentifyIntentionNode = (llm: OpenRouterService) => {
 
   return async (state: GraphState): Promise<Partial<GraphState>> => {
     
@@ -39,6 +41,7 @@ export const createIdentifyIntentionNode = () => {
       const lastUserMessage = [...state.messages]
         .reverse()
         .find((message) => message._getType() === 'human');
+
       const question = getMessageText(lastUserMessage?.content);
 
       if (!question.trim()) {
@@ -48,12 +51,33 @@ export const createIdentifyIntentionNode = () => {
         };
       }
 
-      console.log(`📝 Extracted question: "${question}"`);
+      const systemPrompt = getSystemPrompt();
+
+      const { data, error } = await llm.generateStructured(
+        systemPrompt,
+        question,
+        IdentifyIntentionSchema,
+      )
+
+      if(error) {
+        console.log('⚠️  Failed to analyze query, assuming simple');
+        return {
+          ...state,
+          error
+        }
+      }
+
+      console.log(JSON.stringify(data, null, 2));
 
       return {
         question,
+        intention: data?.intention,
+        intentionReason: data?.reasoning,
         error: undefined,
+        databaseExecutionType: data?.databaseExecutionType,
+        financialActions: data?.financialActions,
       };
+
     } catch (error: any) {
 
       console.error('Error extracting question:', error.message);

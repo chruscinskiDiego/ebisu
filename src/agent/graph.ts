@@ -1,52 +1,44 @@
-/**
- * Starter LangGraph.js Template
- * Make this code your own!
- */
 import { END, START, StateGraph } from "@langchain/langgraph";
 import { EbisuStateSchema } from "./schemas/message.schema.js";
+import type { GraphState } from "./schemas/message.schema.js";
 import { createIdentifyIntentionNode } from "./nodes/identifyIntentionNode.js";
+import { createDatabaseExecutionNode } from "./nodes/databaseExecutionNode.js";
+import { createGetRealTimeMarketShareNode } from "./nodes/getRealTimeMarketShareNode.js";
 import { createStructuredResponseNode } from "./nodes/structuredResponseNode.js";
+import { OpenRouterService } from "../services/openrouterService.js";
 
-export const buildEbisuGraph = () => {
+const routeAfterIdentifyIntention = (state: GraphState) => {
+  if (state.error) return 'structuredResponse';
+
+  switch (state.intention) {
+    case 'databaseExecution':
+      return 'databaseExecution';
+    case 'realTimeMarketShare':
+      return 'getRealTimeMarketShare';
+    default:
+      return 'structuredResponse';
+  }
+};
+
+export const buildEbisuGraph = (llm: OpenRouterService) => {
 
   const workflow = new StateGraph({
     stateSchema: EbisuStateSchema,
   })
-    .addNode('identifyIntention', createIdentifyIntentionNode())
-    .addNode('structuredResponse', createStructuredResponseNode())
-    
-    .addEdge(START, 'identifyIntention')
-    .addEdge('identifyIntention', 'structuredResponse')
+    .addNode('identifyIntention', createIdentifyIntentionNode(llm))
+    .addNode('databaseExecution', createDatabaseExecutionNode())
+    .addNode('getRealTimeMarketShare', createGetRealTimeMarketShareNode())
+    .addNode('structuredResponse', createStructuredResponseNode(llm))
 
+    .addEdge(START, 'identifyIntention')
+    .addConditionalEdges('identifyIntention', routeAfterIdentifyIntention)
+
+    .addEdge('databaseExecution', 'structuredResponse')
+    .addEdge('getRealTimeMarketShare', 'structuredResponse')
     .addEdge('structuredResponse', END);
 
-    /*.addConditionalEdges('extractQuestion', (state: GraphState) => {
-      if (state.error) return END;
-      return 'queryPlanner';
-    })
-
-    .addEdge('queryPlanner', 'cypherGenerator')
-    .addEdge('cypherGenerator', 'cypherExecutor')
-
-    .addConditionalEdges('cypherExecutor', (state: GraphState) => {
-      if (state.needsCorrection && (!state.correctionAttempts || state.correctionAttempts < 1)) {
-        return 'cypherCorrection';
-      }
-
-      if (state.isMultiStep && state.subQuestions && state.currentStep !== undefined) {
-        if (state.currentStep < state.subQuestions.length) {
-          return 'cypherGenerator';
-        }
-      }
-
-      return 'analyticalResponse';
-    })
-
-    .addEdge('cypherCorrection', 'cypherExecutor')
-    .addEdge('analyticalResponse', END);*/
-
-
   return workflow.compile();
+
 }
 
-export const graph = buildEbisuGraph();
+export const graph = buildEbisuGraph(new OpenRouterService());

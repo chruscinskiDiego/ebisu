@@ -1,9 +1,9 @@
 export const config = {
   apiKey: process.env.OPENROUTER_API_KEY!,
-  httpReferer: '',
-  xTitle: 'IA Devs - Sales Analytics Reporter',
+  httpReferer: process.env.OPENROUTER_HTTP_REFERER ?? '',
+  xTitle: process.env.OPENROUTER_X_TITLE ?? 'IA Devs - Sales Analytics Reporter',
   models: [
-    'arcee-ai/trinity-large-preview:free',
+    'cohere/north-mini-code:free',
   ],
   provider: {
     sort: {
