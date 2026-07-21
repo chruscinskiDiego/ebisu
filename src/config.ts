@@ -12,10 +12,21 @@ export const config = {
     },
   },
   temperature: 0.7,
-  neo4j: {
-    uri: "neo4j://localhost:7687",
-    username: "neo4j",
-    password: "password",
+  postgres: {
+    host: process.env.POSTGRES_HOST ?? 'localhost',
+    port: Number(process.env.POSTGRES_PORT ?? 5432),
+    username: process.env.POSTGRES_USER ?? 'postgres',
+    password: process.env.POSTGRES_PASSWORD ?? 'postgres',
+    database: process.env.POSTGRES_DATABASE ?? 'ebisu',
+    ssl: process.env.POSTGRES_SSL === 'true',
+    synchronize: process.env.TYPEORM_SYNCHRONIZE === 'true',
+    logging: process.env.TYPEORM_LOGGING === 'true',
+    migrationsRun: process.env.TYPEORM_MIGRATIONS_RUN === 'true',
+  },
+  fmp: {
+    base_url: 'https://financialmodelingprep.com/stable/',
+    api_key: process.env.FMP_API_KEY ?? '',
+
   },
   maxCorrectionAttempts: 1,
   maxSubQuestions: 3,

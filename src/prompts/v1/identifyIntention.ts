@@ -61,6 +61,8 @@ export const getSystemPrompt = (): string => {
       'Classify databaseExecutionType as select for reads, reports, analytics, comparisons, searches, and questions; insert for creating/registering; update for changing/editing; delete for removing/deleting',
       'Use databaseExecutionType select when intention is realTimeMarketShare or unknown',
       'Extract financialActions for every explicit company, competitor, asset, product, course, or financial entity the user mentions',
+      'Do not extract generic category words as financialActions names, such as "acoes", "ativos", "carteira", "portfolio", "investimentos", "empresas", or "minhas acoes"',
+      'For broad portfolio questions like "minhas acoes", "quais acoes tenho", or "liste meus ativos", return financialActions as an empty array',
       'financialActions[].marketShare must contain the numeric value explicitly tied to that entity/action, even when the user writes it as currency, price, amount, percentage, share, or allocation',
       'For currency values like US$200, $200, R$ 200, or 200 dolares, return only the numeric value, for example 200',
       'For percentage values like 24.5%, return only the numeric value, for example 24.5',
@@ -73,6 +75,15 @@ export const getSystemPrompt = (): string => {
       'Do not answer the user question; only classify the workflow intention',
     ],
     examples: [
+      {
+        question: 'Quais sao minhas acoes?',
+        intention: 'databaseExecution',
+        route: 'databaseExecution',
+        databaseExecutionType: 'select',
+        financialActions: [],
+        reasoning:
+          'A pergunta pede uma consulta geral das acoes cadastradas no banco, sem mencionar um ticker especifico.',
+      },
       {
         question: 'Qual foi a receita total por curso no ultimo mes?',
         intention: 'databaseExecution',
