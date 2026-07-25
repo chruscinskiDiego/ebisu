@@ -106,7 +106,13 @@ export const getSystemPrompt = (): string => {
       'When an insert result contains updatedSymbols, say the stock was already in the portfolio and the informed details were updated',
       'When an update result contains missingSymbols, say the stock was not found and ask whether the user wants to add it',
       'When databaseExecutionResult exists, explain the user-visible action performed or the next information needed',
+      'When userExecutionResult exists together with another result, mention both the profile update and the other action in one response',
       'When realTimeMarketShareResult exists, explain what market information was requested or searched',
+      'When realTimeMarketShareResult contains operation real_time_quote and quotes, show the current price and percentage change when available',
+      'When realTimeMarketShareResult contains source portfolio, say the quotes came from the stocks already in the user portfolio',
+      'When realTimeMarketShareResult contains missingSymbols, say which tickers could not be quoted',
+      'When workflowTasks has more than one item, summarize each completed task without exposing internal workflow names',
+      'When workflowExecutionResults has multiple items, combine them into one coherent answer instead of choosing only one result',
       'When stocks exists, include the extracted symbols, names, exchanges, and investment amounts when available',
       'When activeUser exists, use it as known personalization context and do not ask again for fields already present',
       'When missingUserFields exists and is not empty, ask gently for those profile details using Portuguese labels and examples',
@@ -214,6 +220,37 @@ export const getSystemPrompt = (): string => {
         message:
           'Busquei direcionar a pergunta para o fluxo de market share em tempo real. As entidades identificadas foram **Apple** e **Microsoft**; nenhum percentual foi informado na pergunta.',
       },
+      {
+        question: 'Adicione a acao TTWO da Take-Two na NASDAQ por US$200 e consulte o valor em tempo real dela',
+        workflow: {
+          workflowTasks: [
+            { intention: 'stockDatabaseExecution', route: 'stockDatabaseExecution', databaseExecutionType: 'insert' },
+            { intention: 'realTimeMarketShare', route: 'getRealTimeMarketShare', databaseExecutionType: 'select' },
+          ],
+          stocks: [{ symbol: 'TTWO', name: 'Take-Two', exchange: 'NASDAQ', investmentAmount: 200, currency: 'USD' }],
+          databaseExecutionResult:
+            '{"operation":"insert","summary":"Cadastro realizado para 1 acao: TTWO.","affected":1,"insertedSymbols":["TTWO"],"updatedSymbols":[]}',
+          realTimeMarketShareResult:
+            '{"operation":"real_time_quote","summary":"Cotacao em tempo real consultada para TTWO.","quotes":[{"requestedSymbol":"TTWO","symbol":"TTWO","name":"Take-Two Interactive","exchange":"NASDAQ","price":245.5,"changesPercentage":1.23}],"missingSymbols":[]}',
+        },
+        message:
+          'Adicionei **TTWO** na **NASDAQ** com investimento de **US$ 200**. A cotacao em tempo real encontrada foi **US$ 245,50**, com variacao de **1,23%**.',
+      },
+      {
+        question: 'Atualize meu nome para Diego e veja os valores atuais das minhas acoes no mercado financeiro',
+        workflow: {
+          workflowTasks: [
+            { intention: 'userDatabaseExecution', route: 'userDatabaseExecution', databaseExecutionType: 'update' },
+            { intention: 'realTimeMarketShare', route: 'getRealTimeMarketShare', databaseExecutionType: 'select' },
+          ],
+          userExecutionResult:
+            '{"operation":"update","summary":"Preferencias do usuario atualizadas.","affected":1,"missingUserFields":[],"user":{"id":1,"name":"Diego"}}',
+          realTimeMarketShareResult:
+            '{"operation":"real_time_quote","summary":"Cotacao em tempo real consultada para AAPL, MSFT.","source":"portfolio","quotes":[{"requestedSymbol":"AAPL","symbol":"AAPL","price":220.1,"changesPercentage":0.72},{"requestedSymbol":"MSFT","symbol":"MSFT","price":510.4,"changesPercentage":-0.18}],"missingSymbols":[]}',
+        },
+        message:
+          'Atualizei seu nome para **Diego** e consultei as cotacoes atuais das acoes da sua carteira: **AAPL** a **US$ 220,10** (**0,72%**) e **MSFT** a **US$ 510,40** (**-0,18%**).',
+      },
     ],
   });
 };
@@ -223,6 +260,13 @@ export const getUserPromptTemplate = (input: {
   error?: string;
   intention?: string;
   intentionReason?: string;
+  workflowTasks?: Array<{
+    intention: string;
+    route: string;
+    databaseExecutionType?: string;
+    description?: string;
+  }>;
+  completedWorkflowTasks?: string[];
   databaseExecutionType?: string;
   stocks?: Array<{
     symbol: string | null;
@@ -241,8 +285,10 @@ export const getUserPromptTemplate = (input: {
   };
   missingUserFields?: string[];
   missingStockFields?: Record<string, string[]>;
+  userExecutionResult?: string;
   databaseExecutionResult?: string;
   realTimeMarketShareResult?: string;
+  workflowExecutionResults?: string[];
 }): string => {
   return JSON.stringify(input);
 };

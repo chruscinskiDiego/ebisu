@@ -7,6 +7,24 @@ export const IdentifyIntentionSchema = z.object({
   route: z
     .enum(['stockDatabaseExecution', 'userDatabaseExecution', 'getRealTimeMarketShare', 'structuredResponse'])
     .describe('The graph node route that matches the selected intention'),
+  workflowTasks: z
+    .array(
+      z.object({
+        intention: z
+          .enum(['stockDatabaseExecution', 'userDatabaseExecution', 'realTimeMarketShare', 'unknown'])
+          .describe('One workflow action requested by the user'),
+        route: z
+          .string()
+          .min(1)
+          .describe('Graph node route for this task'),
+        databaseExecutionType: z
+          .enum(['select', 'insert', 'update', 'delete'])
+          .optional()
+          .describe('Database operation for this task when applicable'),
+        description: z.string().optional().describe('Brief description of this requested task'),
+      }),
+    )
+    .describe('All workflow tasks requested by the user, in execution order'),
   databaseExecutionType: z
     .enum(['select', 'insert', 'update', 'delete'])
     .describe('The local database operation to execute when intention is databaseExecution; use select for read-only or non-database routes'),
@@ -71,7 +89,7 @@ export const getSystemPrompt = (): string => {
   return JSON.stringify({
     role: 'Workflow Intention Router - Determine which path should handle the user question',
     output:
-      'Return JSON with: intention, route, databaseExecutionType, stocks, userProfileUpdate, reasoning',
+      'Return JSON with: intention, route, workflowTasks, databaseExecutionType, stocks, userProfileUpdate, reasoning',
     inputContract: {
       currentMessage:
         'The latest user message. It may be a short answer to a previous assistant question.',
@@ -136,6 +154,14 @@ export const getSystemPrompt = (): string => {
     rules: [
       'Return exactly one intention: stockDatabaseExecution, userDatabaseExecution, realTimeMarketShare, or unknown',
       'route must match intention: stockDatabaseExecution -> stockDatabaseExecution, userDatabaseExecution -> userDatabaseExecution, realTimeMarketShare -> getRealTimeMarketShare, unknown -> structuredResponse',
+      'workflowTasks must include every distinct action requested by the user',
+      'For a simple request, workflowTasks must contain one task matching intention and route',
+      'For a compound request, workflowTasks must contain multiple tasks in execution order',
+      'When the user asks to add/update/delete a stock and also get current price, quote, market share, competitor, or real-time market information for it, include stockDatabaseExecution first and realTimeMarketShare second',
+      'When the user asks to update profile information and also perform a stock or market task, include userDatabaseExecution and the other task',
+      'When the user asks for current prices or market values of "my stocks", "minhas acoes", "minha carteira", or similar portfolio references without naming tickers, include realTimeMarketShare with stocks as an empty array',
+      'Each workflowTasks item must use databaseExecutionType when its route is stockDatabaseExecution or userDatabaseExecution',
+      'Use current graph routes in workflowTasks.route. Existing routes are userDatabaseExecution, stockDatabaseExecution, getRealTimeMarketShare, and structuredResponse',
       'Classify databaseExecutionType as select for reads, reports, analytics, comparisons, searches, and questions; insert for creating/registering; update for changing/editing; delete for removing/deleting',
       'Use databaseExecutionType select when intention is realTimeMarketShare or unknown',
       'Prefer userDatabaseExecution when the user is answering onboarding questions or asks to change/view their profile',
@@ -228,6 +254,14 @@ export const getSystemPrompt = (): string => {
         question: 'Adicione a acao TTWO da Take-Two na NASDAQ por US$200',
         intention: 'stockDatabaseExecution',
         route: 'stockDatabaseExecution',
+        workflowTasks: [
+          {
+            intention: 'stockDatabaseExecution',
+            route: 'stockDatabaseExecution',
+            databaseExecutionType: 'insert',
+            description: 'Cadastrar TTWO na carteira',
+          },
+        ],
         databaseExecutionType: 'insert',
         stocks: [
           {
@@ -244,9 +278,50 @@ export const getSystemPrompt = (): string => {
           'A pergunta solicita registrar uma nova acao no banco e informa campos basicos do ativo.',
       },
       {
+        question: 'Adicione a acao TTWO da Take-Two na NASDAQ por US$200 e consulte o valor em tempo real dela',
+        intention: 'stockDatabaseExecution',
+        route: 'stockDatabaseExecution',
+        workflowTasks: [
+          {
+            intention: 'stockDatabaseExecution',
+            route: 'stockDatabaseExecution',
+            databaseExecutionType: 'insert',
+            description: 'Cadastrar TTWO na carteira',
+          },
+          {
+            intention: 'realTimeMarketShare',
+            route: 'getRealTimeMarketShare',
+            databaseExecutionType: 'select',
+            description: 'Consultar informacao em tempo real sobre TTWO',
+          },
+        ],
+        databaseExecutionType: 'insert',
+        stocks: [
+          {
+            symbol: 'TTWO',
+            name: 'Take-Two',
+            exchange: 'NASDAQ',
+            investmentAmount: 200,
+            country: null,
+            currency: 'USD',
+          },
+        ],
+        userProfileUpdate: {},
+        reasoning:
+          'A pergunta combina cadastro de acao com consulta de mercado em tempo real sobre o mesmo ativo.',
+      },
+      {
         question: 'Atualize minha estrategia para value e meu horizonte para medio prazo',
         intention: 'userDatabaseExecution',
         route: 'userDatabaseExecution',
+        workflowTasks: [
+          {
+            intention: 'userDatabaseExecution',
+            route: 'userDatabaseExecution',
+            databaseExecutionType: 'update',
+            description: 'Atualizar preferencias do usuario',
+          },
+        ],
         databaseExecutionType: 'update',
         stocks: [],
         userProfileUpdate: {
@@ -257,9 +332,43 @@ export const getSystemPrompt = (): string => {
           'A pergunta solicita atualizacao de dados persistentes do usuario.',
       },
       {
+        question: 'Atualize meu nome para Diego e veja os valores atuais das minhas acoes no mercado financeiro',
+        intention: 'userDatabaseExecution',
+        route: 'userDatabaseExecution',
+        workflowTasks: [
+          {
+            intention: 'userDatabaseExecution',
+            route: 'userDatabaseExecution',
+            databaseExecutionType: 'update',
+            description: 'Atualizar o nome do usuario',
+          },
+          {
+            intention: 'realTimeMarketShare',
+            route: 'getRealTimeMarketShare',
+            databaseExecutionType: 'select',
+            description: 'Consultar cotacoes atuais da carteira cadastrada',
+          },
+        ],
+        databaseExecutionType: 'update',
+        stocks: [],
+        userProfileUpdate: {
+          name: 'Diego',
+        },
+        reasoning:
+          'A pergunta combina atualizacao do perfil com consulta em tempo real dos ativos cadastrados.',
+      },
+      {
         question: 'Compare o market share atual da Apple e da Microsoft',
         intention: 'realTimeMarketShare',
         route: 'getRealTimeMarketShare',
+        workflowTasks: [
+          {
+            intention: 'realTimeMarketShare',
+            route: 'getRealTimeMarketShare',
+            databaseExecutionType: 'select',
+            description: 'Consultar market share atual',
+          },
+        ],
         databaseExecutionType: 'select',
         stocks: [
           {

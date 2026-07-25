@@ -7,9 +7,16 @@ import { createGetRealTimeMarketShareNode } from "./nodes/getRealTimeMarketShare
 import { createStructuredResponseNode } from "./nodes/structuredResponseNode.js";
 import { OpenRouterService } from "../services/openrouterService.js";
 import { createUserMemoryNode } from "./nodes/userMemoryNode.js";
+import { getNextWorkflowNode, TASK_NODE_ROUTE_MAP } from "./taskRouting.js";
 
 const routeAfterUserMemory = (state: GraphState) => {
   if (state.error) return 'structuredResponse';
+
+  const nextNode = getNextWorkflowNode(state);
+  if (nextNode !== 'structuredResponse') {
+    return nextNode;
+  }
+
   if (state.missingUserFields?.length) return 'structuredResponse';
 
   switch (state.intention) {
@@ -22,6 +29,15 @@ const routeAfterUserMemory = (state: GraphState) => {
     default:
       return 'structuredResponse';
   }
+};
+
+const routeAfterTaskExecution = (state: GraphState) => {
+  if (state.error) return 'structuredResponse';
+  if (state.missingStockFields && Object.keys(state.missingStockFields).length > 0) {
+    return 'structuredResponse';
+  }
+
+  return getNextWorkflowNode(state);
 };
 
 export const buildEbisuGraph = (llm: OpenRouterService) => {
@@ -37,11 +53,11 @@ export const buildEbisuGraph = (llm: OpenRouterService) => {
 
     .addEdge(START, 'identifyIntention')
     .addEdge('identifyIntention', 'userMemory')
-    .addConditionalEdges('userMemory', routeAfterUserMemory)
+    .addConditionalEdges('userMemory', routeAfterUserMemory, TASK_NODE_ROUTE_MAP)
 
-    .addEdge('stockDatabaseExecution', 'structuredResponse')
+    .addConditionalEdges('stockDatabaseExecution', routeAfterTaskExecution, TASK_NODE_ROUTE_MAP)
 
-    .addEdge('getRealTimeMarketShare', 'structuredResponse')
+    .addConditionalEdges('getRealTimeMarketShare', routeAfterTaskExecution, TASK_NODE_ROUTE_MAP)
     .addEdge('structuredResponse', END);
 
   return workflow.compile();

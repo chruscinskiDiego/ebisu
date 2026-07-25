@@ -58,6 +58,17 @@ export const UserProfileUpdateSchema = z.object({
 
 export type UserProfileUpdate = z.infer<typeof UserProfileUpdateSchema>;
 
+export const WorkflowRouteSchema = z.string().min(1);
+
+export const WorkflowTaskSchema = z.object({
+    intention: IntentionSchema,
+    route: WorkflowRouteSchema,
+    databaseExecutionType: DatabaseExecutionTypeSchema.optional(),
+    description: z.string().optional(),
+});
+
+export type WorkflowTask = z.infer<typeof WorkflowTaskSchema>;
+
 export const EbisuStateSchema = z.object({
     // Input
     messages: withLangGraph(
@@ -67,6 +78,8 @@ export const EbisuStateSchema = z.object({
     error: z.string().optional(),
     intention: IntentionSchema.optional(),
     intentionReason: z.string().optional(),
+    workflowTasks: z.array(WorkflowTaskSchema).optional(),
+    completedWorkflowTasks: z.array(z.string()).optional(),
     databaseExecutionType: DatabaseExecutionTypeSchema.optional(),
     stocks: z.array(StockSchema).optional(),
     userProfileUpdate: UserProfileUpdateSchema.optional(),
@@ -81,8 +94,10 @@ export const EbisuStateSchema = z.object({
         .optional(),
     missingUserFields: z.array(z.string()).optional(),
     missingStockFields: z.record(z.string(), z.array(z.string())).optional(),
+    userExecutionResult: z.string().optional(),
     databaseExecutionResult: z.string().optional(),
     realTimeMarketShareResult: z.string().optional(),
+    workflowExecutionResults: z.array(z.string()).optional(),
 });
 
 export type GraphState = z.infer<typeof EbisuStateSchema>;

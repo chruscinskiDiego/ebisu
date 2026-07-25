@@ -1,6 +1,6 @@
 import { AIMessage } from "@langchain/core/messages"
 import { GraphState } from "../schemas/message.schema"
-import { OpenRouterService } from "../../services/openrouterService";
+import { OpenRouterService } from "../../services/openrouterService.ts";
 import {
     FinalResponseSchema,
     getSystemPrompt,
@@ -51,25 +51,55 @@ const formatStockMissingFields = (missingStockFields: Record<string, string[]>):
     ].join('\n');
 };
 
+const getErrorMessage = (error: unknown): string => {
+    if (
+        error &&
+        typeof error === 'object' &&
+        'message' in error &&
+        typeof error.message === 'string'
+    ) {
+        return error.message;
+    }
+
+    return String(error);
+};
+
+const formatWorkflowResults = (state: GraphState): string => {
+    const results = Array.from(new Set([
+        ...(state.workflowExecutionResults ?? []),
+        state.userExecutionResult,
+        state.databaseExecutionResult,
+        state.realTimeMarketShareResult,
+    ].filter((result): result is string => Boolean(result))));
+
+    return [
+        ...results,
+        state.missingUserFields?.length ? formatUserMissingFields(state.missingUserFields) : undefined,
+        state.missingStockFields && Object.keys(state.missingStockFields).length > 0
+            ? formatStockMissingFields(state.missingStockFields)
+            : undefined,
+    ].filter(Boolean).join('\n\n');
+};
+
 const getFallbackMessage = (state: GraphState): string => {
     if (state.error) {
         return `Nao consegui processar sua mensagem: ${state.error}`;
-    }
-
-    if (state.missingUserFields?.length) {
-        return formatUserMissingFields(state.missingUserFields);
     }
 
     if (state.missingStockFields && Object.keys(state.missingStockFields).length > 0) {
         return formatStockMissingFields(state.missingStockFields);
     }
 
-    if (state.databaseExecutionResult) {
-        return state.databaseExecutionResult;
+    if (
+        state.userExecutionResult ||
+        state.databaseExecutionResult ||
+        state.realTimeMarketShareResult
+    ) {
+        return formatWorkflowResults(state);
     }
 
-    if (state.realTimeMarketShareResult) {
-        return state.realTimeMarketShareResult;
+    if (state.missingUserFields?.length) {
+        return formatUserMissingFields(state.missingUserFields);
     }
 
     return `Nao identifiquei um fluxo para sua pergunta. Motivo: ${state.intentionReason ?? 'intencao desconhecida'}`;
@@ -87,13 +117,17 @@ export const createStructuredResponseNode = (llmClient: OpenRouterService) => {
                     error: state.error,
                     intention: state.intention,
                     intentionReason: state.intentionReason,
+                    workflowTasks: state.workflowTasks,
+                    completedWorkflowTasks: state.completedWorkflowTasks,
                     databaseExecutionType: state.databaseExecutionType,
                     stocks: state.stocks,
                     activeUser: state.activeUser,
                     missingUserFields: state.missingUserFields,
                     missingStockFields: state.missingStockFields,
+                    userExecutionResult: state.userExecutionResult,
                     databaseExecutionResult: state.databaseExecutionResult,
                     realTimeMarketShareResult: state.realTimeMarketShareResult,
+                    workflowExecutionResults: state.workflowExecutionResults,
                 }),
                 FinalResponseSchema,
             );
@@ -107,11 +141,12 @@ export const createStructuredResponseNode = (llmClient: OpenRouterService) => {
                     new AIMessage(message),
                 ],
             };
-        } catch (error: any) {
-            console.error('Error analyzing query:', error.message);
+        } catch (error: unknown) {
+            const message = getErrorMessage(error);
+            console.error('Error analyzing query:', message);
             return {
                 messages: [
-                    new AIMessage(`Nao consegui gerar uma resposta: ${error.message}`),
+                    new AIMessage(`Nao consegui gerar uma resposta: ${message}`),
                 ],
             };
         }

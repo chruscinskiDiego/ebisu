@@ -1,5 +1,27 @@
 import { GraphState } from "../schemas/message.schema";
 import { UserService } from "../../services/userService.ts";
+import {
+    appendUnique,
+    findWorkflowTaskByRoute,
+    USER_MEMORY_TASK_ROUTE,
+} from "../taskRouting.ts";
+
+const hasProfileUpdate = (update: GraphState['userProfileUpdate'] = {}): boolean => {
+    return Object.values(update).some((value) => value !== undefined && value !== null && value !== '');
+};
+
+const getErrorMessage = (error: unknown): string => {
+    if (
+        error &&
+        typeof error === 'object' &&
+        'message' in error &&
+        typeof error.message === 'string'
+    ) {
+        return error.message;
+    }
+
+    return String(error);
+};
 
 const formatUserExecutionResult = (
     result: Awaited<ReturnType<UserService['execute']>>,
@@ -26,12 +48,21 @@ export const createUserMemoryNode = () => {
 
     return async (state: GraphState): Promise<Partial<GraphState>> => {
         try {
+            const userTask = findWorkflowTaskByRoute(state, USER_MEMORY_TASK_ROUTE);
             const result = await userService.execute(
                 state.intention === 'userDatabaseExecution'
-                    ? state.databaseExecutionType ?? 'update'
+                    ? state.databaseExecutionType ?? userTask?.databaseExecutionType ?? 'update'
+                    : userTask?.databaseExecutionType
+                        ? userTask.databaseExecutionType
                     : 'select',
                 state.userProfileUpdate ?? {},
             );
+            const shouldExposeUserResult =
+                state.intention === 'userDatabaseExecution' ||
+                state.workflowTasks?.some((task) => task.intention === 'userDatabaseExecution') ||
+                hasProfileUpdate(state.userProfileUpdate) ||
+                result.missingUserFields.length > 0;
+            const formattedResult = formatUserExecutionResult(result);
 
             return {
                 activeUser: result.user
@@ -44,14 +75,25 @@ export const createUserMemoryNode = () => {
                     }
                     : undefined,
                 missingUserFields: result.missingUserFields,
+                userExecutionResult: shouldExposeUserResult
+                    ? formattedResult
+                    : state.userExecutionResult,
                 databaseExecutionResult:
                     state.intention === 'userDatabaseExecution' || result.missingUserFields.length > 0
-                        ? formatUserExecutionResult(result)
+                        ? formattedResult
                         : state.databaseExecutionResult,
+                completedWorkflowTasks:
+                    shouldExposeUserResult
+                        ? appendUnique(state.completedWorkflowTasks, USER_MEMORY_TASK_ROUTE)
+                        : state.completedWorkflowTasks,
+                workflowExecutionResults:
+                    shouldExposeUserResult
+                        ? [...(state.workflowExecutionResults ?? []), formattedResult]
+                        : state.workflowExecutionResults,
             };
-        } catch (error: any) {
+        } catch (error: unknown) {
             return {
-                error: `Falha ao processar o perfil unico do usuario no Postgres: ${error.message}`,
+                error: `Falha ao processar o perfil unico do usuario no Postgres: ${getErrorMessage(error)}`,
             };
         }
     };

@@ -1,6 +1,24 @@
 import { GraphState } from "../schemas/message.schema";
 import { StockService } from "../../services/stockService.ts";
 import { OpenRouterService } from "../../services/openrouterService.ts";
+import {
+    appendUnique,
+    findWorkflowTaskByRoute,
+    STOCK_DATABASE_TASK_ROUTE,
+} from "../taskRouting.ts";
+
+const getErrorMessage = (error: unknown): string => {
+    if (
+        error &&
+        typeof error === 'object' &&
+        'message' in error &&
+        typeof error.message === 'string'
+    ) {
+        return error.message;
+    }
+
+    return String(error);
+};
 
 const formatDatabaseExecutionResult = (
     result: Awaited<ReturnType<StockService['execute']>>,
@@ -38,7 +56,9 @@ export const createStockDatabaseExecutionNode = (llm: OpenRouterService) => {
             };
         }
 
-        const databaseExecutionType = state.databaseExecutionType ?? 'select';
+        const stockTask = findWorkflowTaskByRoute(state, STOCK_DATABASE_TASK_ROUTE);
+        const databaseExecutionType =
+            stockTask?.databaseExecutionType ?? state.databaseExecutionType ?? 'select';
 
         try {
             const result = await stockService.execute(
@@ -47,16 +67,26 @@ export const createStockDatabaseExecutionNode = (llm: OpenRouterService) => {
                 state.stocks ?? [],
             );
 
+            const formattedResult = formatDatabaseExecutionResult(result);
+
             return {
                 databaseExecutionType,
-                databaseExecutionResult: formatDatabaseExecutionResult(result),
+                databaseExecutionResult: formattedResult,
                 missingStockFields: result.missingStockFields,
+                completedWorkflowTasks: appendUnique(
+                    state.completedWorkflowTasks,
+                    STOCK_DATABASE_TASK_ROUTE,
+                ),
+                workflowExecutionResults: [
+                    ...(state.workflowExecutionResults ?? []),
+                    formattedResult,
+                ],
             };
 
             
-        } catch (error: any) {
+        } catch (error: unknown) {
             return {
-                error: `Falha ao executar operacao de stocks no Postgres: ${error.message}`,
+                error: `Falha ao executar operacao de stocks no Postgres: ${getErrorMessage(error)}`,
             };
         }
     };

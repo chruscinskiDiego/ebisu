@@ -1,6 +1,6 @@
 import { getSystemPrompt as getIntentionSystemPrompt, IdentifyIntentionSchema } from '../../prompts/v1/identifyIntention.ts';
 import { OpenRouterService } from '../../services/openrouterService.ts';
-import { GraphState } from '../schemas/message.schema.ts';
+import { GraphState, WorkflowTask } from '../schemas/message.schema.ts';
 
 const getMessageText = (content: unknown): string => {
   if (typeof content === 'string') return content;
@@ -36,6 +36,19 @@ const getRecentConversationText = (messages: GraphState['messages']): string => 
     })
     .filter(Boolean)
     .join('\n');
+};
+
+const getErrorMessage = (error: unknown): string => {
+  if (
+    error &&
+    typeof error === 'object' &&
+    'message' in error &&
+    typeof error.message === 'string'
+  ) {
+    return error.message;
+  }
+
+  return String(error);
 };
 
 export const createIdentifyIntentionNode = (llm: OpenRouterService) => {
@@ -76,7 +89,7 @@ export const createIdentifyIntentionNode = (llm: OpenRouterService) => {
         IdentifyIntentionSchema,
       )
 
-      if(error) {
+      if (error) {
         console.log('⚠️  Failed to analyze query, assuming simple');
         return {
           ...state,
@@ -84,21 +97,38 @@ export const createIdentifyIntentionNode = (llm: OpenRouterService) => {
         }
       }
 
+      const workflowTasks: WorkflowTask[] = data?.workflowTasks?.length
+        ? data.workflowTasks
+        : data?.intention && data?.route
+          ? [
+              {
+                intention: data.intention,
+                route: data.route,
+                databaseExecutionType: data.databaseExecutionType,
+                description: data.reasoning,
+              },
+            ]
+          : [];
+
       return {
         question,
         intention: data?.intention,
         intentionReason: data?.reasoning,
+        workflowTasks,
+        completedWorkflowTasks: [],
+        workflowExecutionResults: [],
         error: undefined,
         databaseExecutionType: data?.databaseExecutionType,
         stocks: data?.stocks,
         userProfileUpdate: data?.userProfileUpdate,
       };
 
-    } catch (error: any) {
+    } catch (error: unknown) {
 
-      console.error('Error extracting question:', error.message);
+      const message = getErrorMessage(error);
+      console.error('Error extracting question:', message);
       return {
-        error: `Failed to extract question: ${error.message}`,
+        error: `Failed to extract question: ${message}`,
       };
 
     }
