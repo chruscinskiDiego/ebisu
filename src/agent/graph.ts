@@ -4,7 +4,7 @@ import type { GraphState } from "./schemas/message.schema.js";
 import { createIdentifyIntentionNode } from "./nodes/identifyIntentionNode.js";
 import { createStockDatabaseExecutionNode } from "./nodes/stockDatabaseExecutionNode.js";
 import { createCryptoDatabaseExecutionNode } from "./nodes/cryptoDatabaseExecutionNode.js";
-import { createGetRealTimeMarketShareNode } from "./nodes/getRealTimeMarketShareNode.js";
+import { createGetRealTimeMarketDataNode } from "./nodes/getRealTimeMarketShareNode.js";
 import { createStructuredResponseNode } from "./nodes/structuredResponseNode.js";
 import { OpenRouterService } from "../services/openrouterService.js";
 import { createUserMemoryNode } from "./nodes/userMemoryNode.js";
@@ -55,7 +55,7 @@ export const buildEbisuGraph = (llm: OpenRouterService) => {
     .addNode('userMemory', createUserMemoryNode())
     .addNode('stockDatabaseExecution', createStockDatabaseExecutionNode(llm))
     .addNode('cryptoDatabaseExecution', createCryptoDatabaseExecutionNode(llm))
-    .addNode('getRealTimeMarketShare', createGetRealTimeMarketShareNode())
+    .addNode('getRealTimeMarketShare', createGetRealTimeMarketDataNode())
     .addNode('structuredResponse', createStructuredResponseNode(llm))
 
     .addEdge(START, 'identifyIntention')

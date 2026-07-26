@@ -50,4 +50,26 @@ describe("cryptocurrency workflow routing", () => {
 
     expect(getNextWorkflowNode(state)).toBe("cryptoDatabaseExecution");
   });
+
+  it("accepts one real-time task for stock and crypto subtasks", () => {
+    const result = IdentifyIntentionSchema.parse({
+      intention: "realTimeMarketShare",
+      route: "getRealTimeMarketShare",
+      workflowTasks: [
+        {
+          intention: "realTimeMarketShare",
+          route: "getRealTimeMarketShare",
+          databaseExecutionType: "select",
+          assetTypes: ["stock", "crypto"],
+        },
+      ],
+      databaseExecutionType: "select",
+      stocks: [],
+      cryptos: [],
+      userProfileUpdate: {},
+      reasoning: "O usuario pediu cotacoes das duas classes de ativos.",
+    });
+
+    expect(result.workflowTasks[0]?.assetTypes).toEqual(["stock", "crypto"]);
+  });
 });

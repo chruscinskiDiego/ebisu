@@ -21,6 +21,10 @@ export const IdentifyIntentionSchema = z.object({
           .enum(['select', 'insert', 'update', 'delete'])
           .optional()
           .describe('Database operation for this task when applicable'),
+        assetTypes: z
+          .array(z.enum(['stock', 'crypto']))
+          .optional()
+          .describe('Asset classes handled by a real-time market data task'),
         description: z.string().optional().describe('Brief description of this requested task'),
       }),
     )
@@ -185,10 +189,14 @@ export const getSystemPrompt = (): string => {
       'workflowTasks must include every distinct action requested by the user',
       'For a simple request, workflowTasks must contain one task matching intention and route',
       'For a compound request, workflowTasks must contain multiple tasks in execution order',
+      'Use exactly one realTimeMarketShare task when one request asks for current prices of multiple assets or asset classes; set assetTypes to every requested class so the node can run its quote subtasks in parallel',
+      'For every realTimeMarketShare task, set assetTypes to stock, crypto, or both according to the requested current market data',
       'When the user asks to add/update/delete a stock and also get current price, quote, market share, competitor, or real-time market information for it, include stockDatabaseExecution first and realTimeMarketShare second',
+      'When the user asks to add/update/delete a cryptocurrency and also get its current price, include cryptoDatabaseExecution first and realTimeMarketShare second',
       'When the user asks for more than one persistence action involving stocks and cryptocurrencies, include one task for each asset type in the order requested',
       'When the user asks to update profile information and also perform a stock, cryptocurrency, or market task, include userDatabaseExecution and every other task',
       'When the user asks for current prices or market values of "my stocks", "minhas acoes", "minha carteira", or similar portfolio references without naming tickers, include realTimeMarketShare with stocks as an empty array',
+      'When the user asks for current prices of "minhas criptomoedas" or "minhas criptos" without naming symbols, include realTimeMarketShare with cryptos as an empty array and assetTypes containing crypto',
       'Each workflowTasks item must use databaseExecutionType when its route is stockDatabaseExecution, cryptoDatabaseExecution, or userDatabaseExecution',
       'Use current graph routes in workflowTasks.route. Existing routes are userDatabaseExecution, stockDatabaseExecution, cryptoDatabaseExecution, getRealTimeMarketShare, and structuredResponse',
       'Classify databaseExecutionType as select for reads, reports, analytics, comparisons, searches, and questions; insert for creating/registering; update for changing/editing; delete for removing/deleting',
@@ -539,6 +547,48 @@ export const getSystemPrompt = (): string => {
           'A pergunta combina atualizacao do perfil com consulta em tempo real dos ativos cadastrados.',
       },
       {
+        question: 'Consulte os valores atuais de AAPL, BTC e ETH',
+        intention: 'realTimeMarketShare',
+        route: 'getRealTimeMarketShare',
+        workflowTasks: [
+          {
+            intention: 'realTimeMarketShare',
+            route: 'getRealTimeMarketShare',
+            databaseExecutionType: 'select',
+            assetTypes: ['stock', 'crypto'],
+            description: 'Consultar em paralelo as cotacoes de AAPL, BTC e ETH',
+          },
+        ],
+        databaseExecutionType: 'select',
+        stocks: [
+          {
+            symbol: 'AAPL',
+            name: 'Apple',
+            exchange: 'NASDAQ',
+            investmentAmount: null,
+            country: null,
+            currency: 'USD',
+          },
+        ],
+        cryptos: [
+          {
+            symbol: 'BTC',
+            name: 'Bitcoin',
+            investmentAmount: null,
+            currency: 'USDT',
+          },
+          {
+            symbol: 'ETH',
+            name: 'Ethereum',
+            investmentAmount: null,
+            currency: 'USDT',
+          },
+        ],
+        userProfileUpdate: {},
+        reasoning:
+          'A pergunta pede cotacoes atuais de uma acao e duas criptomoedas.',
+      },
+      {
         question: 'Compare o market share atual da Apple e da Microsoft',
         intention: 'realTimeMarketShare',
         route: 'getRealTimeMarketShare',
@@ -547,6 +597,7 @@ export const getSystemPrompt = (): string => {
             intention: 'realTimeMarketShare',
             route: 'getRealTimeMarketShare',
             databaseExecutionType: 'select',
+            assetTypes: ['stock'],
             description: 'Consultar market share atual',
           },
         ],

@@ -68,11 +68,13 @@ export const UserProfileUpdateSchema = z.object({
 export type UserProfileUpdate = z.infer<typeof UserProfileUpdateSchema>;
 
 export const WorkflowRouteSchema = z.string().min(1);
+export const MarketAssetTypeSchema = z.enum(['stock', 'crypto']);
 
 export const WorkflowTaskSchema = z.object({
     intention: IntentionSchema,
     route: WorkflowRouteSchema,
     databaseExecutionType: DatabaseExecutionTypeSchema.optional(),
+    assetTypes: z.array(MarketAssetTypeSchema).optional(),
     description: z.string().optional(),
 });
 

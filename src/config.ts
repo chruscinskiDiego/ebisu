@@ -28,7 +28,11 @@ export const config = {
   fmp: {
     base_url: 'https://financialmodelingprep.com/stable/',
     api_key: process.env.FMP_API_KEY ?? '',
-
+  },
+  binance: {
+    base_url:
+      process.env.BINANCE_MARKET_DATA_BASE_URL ??
+      'https://data-api.binance.vision/api/v3/',
   },
   maxCorrectionAttempts: 1,
   maxSubQuestions: 3,
