@@ -120,6 +120,7 @@ export const createIdentifyIntentionNode = (llm: OpenRouterService) => {
         error: undefined,
         databaseExecutionType: data?.databaseExecutionType,
         stocks: data?.stocks,
+        cryptos: data?.cryptos,
         userProfileUpdate: data?.userProfileUpdate,
       };
 

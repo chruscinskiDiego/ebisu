@@ -5,6 +5,7 @@ import { z } from 'zod/v3';
 
 export const IntentionSchema = z.enum([
     'stockDatabaseExecution',
+    'cryptoDatabaseExecution',
     'userDatabaseExecution',
     'realTimeMarketShare',
     'unknown',
@@ -23,8 +24,16 @@ export const StockSchema = z.object({
     currency: z.string().nullable(),
 });
 
+export const CryptoSchema = z.object({
+    symbol: z.string().nullable(),
+    name: z.string().nullable(),
+    investmentAmount: z.number().nullable(),
+    currency: z.string().nullable(),
+});
+
 export type DatabaseExecutionType = z.infer<typeof DatabaseExecutionTypeSchema>;
 export type Stock = z.infer<typeof StockSchema>;
+export type Crypto = z.infer<typeof CryptoSchema>;
 
 export const UserTypeSchema = z.enum([
     'BEGINNER',
@@ -82,6 +91,7 @@ export const EbisuStateSchema = z.object({
     completedWorkflowTasks: z.array(z.string()).optional(),
     databaseExecutionType: DatabaseExecutionTypeSchema.optional(),
     stocks: z.array(StockSchema).optional(),
+    cryptos: z.array(CryptoSchema).optional(),
     userProfileUpdate: UserProfileUpdateSchema.optional(),
     activeUser: z
         .object({
@@ -94,6 +104,7 @@ export const EbisuStateSchema = z.object({
         .optional(),
     missingUserFields: z.array(z.string()).optional(),
     missingStockFields: z.record(z.string(), z.array(z.string())).optional(),
+    missingCryptoFields: z.record(z.string(), z.array(z.string())).optional(),
     userExecutionResult: z.string().optional(),
     databaseExecutionResult: z.string().optional(),
     realTimeMarketShareResult: z.string().optional(),

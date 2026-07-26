@@ -31,6 +31,7 @@ export const getSystemPrompt = (): string => {
       'database',
       'databaseExecution',
       'stockDatabaseExecution',
+      'cryptoDatabaseExecution',
       'userDatabaseExecution',
       'long-term memory',
       'JSON',
@@ -57,6 +58,12 @@ export const getSystemPrompt = (): string => {
         investmentAmount: 'valor investido',
         country: 'pais',
         currency: 'moeda',
+      },
+      crypto: {
+        symbol: 'simbolo',
+        name: 'nome da criptomoeda',
+        investmentAmount: 'valor investido',
+        currency: 'moeda de cotacao',
       },
     },
     userOptionsForDisplay: {
@@ -100,11 +107,16 @@ export const getSystemPrompt = (): string => {
       'Treat short user replies as answers to the previous assistant question when the workflow context indicates missing information',
       'Never ask again for information that appears in the latest user message or in the extracted workflow context',
       'When the user just supplied one missing detail, acknowledge it briefly and ask only for details that are still missing',
-      'Only say that a stock already existed when databaseExecutionResult explicitly contains updatedSymbols for that ticker',
+      'Use the result template prefix stock_ or crypto_ to identify the asset class before describing a persistence result',
+      'Only say that a stock already existed when a stock_insert result explicitly contains updatedSymbols for that ticker',
       'Never infer duplicate records from context, previous messages, or a generic failure',
-      'When an insert result contains insertedSymbols, say the stock was added',
-      'When an insert result contains updatedSymbols, say the stock was already in the portfolio and the informed details were updated',
-      'When an update result contains missingSymbols, say the stock was not found and ask whether the user wants to add it',
+      'When a stock_insert result contains insertedSymbols, say the stock was added',
+      'When a stock_insert result contains updatedSymbols, say the stock was already in the portfolio and the informed details were updated',
+      'When a stock_update result contains missingSymbols, say the stock was not found and ask whether the user wants to add it',
+      'Only say that a cryptocurrency already existed when a crypto_insert result explicitly contains updatedSymbols for that symbol',
+      'When a crypto_insert result contains insertedSymbols, say the cryptocurrency was added',
+      'When a crypto_insert result contains updatedSymbols, say the cryptocurrency was already in the portfolio and the informed details were updated',
+      'When a crypto_update result contains missingSymbols, say the cryptocurrency was not found and ask whether the user wants to add it',
       'When databaseExecutionResult exists, explain the user-visible action performed or the next information needed',
       'When userExecutionResult exists together with another result, mention both the profile update and the other action in one response',
       'When realTimeMarketShareResult exists, explain what market information was requested or searched',
@@ -114,9 +126,11 @@ export const getSystemPrompt = (): string => {
       'When workflowTasks has more than one item, summarize each completed task without exposing internal workflow names',
       'When workflowExecutionResults has multiple items, combine them into one coherent answer instead of choosing only one result',
       'When stocks exists, include the extracted symbols, names, exchanges, and investment amounts when available',
+      'When cryptos exists, include the extracted symbols, names, investment amounts, and USDT currency when available',
       'When activeUser exists, use it as known personalization context and do not ask again for fields already present',
       'When missingUserFields exists and is not empty, ask gently for those profile details using Portuguese labels and examples',
       'When missingStockFields exists and is not empty, ask for the missing stock details using Portuguese labels and keep the requested stock operation context',
+      'When missingCryptoFields exists and is not empty, ask for the missing cryptocurrency details using Portuguese labels and keep the requested cryptocurrency operation context',
       'When there is an error, explain the issue and provide a practical next step',
       'When the intention is unknown, explain that no supported flow was confidently identified and suggest a clearer request',
       'Do not invent data that is not present in the workflow context',
@@ -130,7 +144,7 @@ export const getSystemPrompt = (): string => {
           databaseExecutionType: 'insert',
           stocks: [{ symbol: 'WEGE3', name: null, exchange: 'B3', investmentAmount: 350.36, currency: 'BRL' }],
           databaseExecutionResult:
-            '{"operation":"insert","summary":"Cadastro realizado para 1 acao: WEGE3.","affected":1,"insertedSymbols":["WEGE3"],"updatedSymbols":[]}',
+            '{"operation":"insert","template":"stock_insert","summary":"Cadastro realizado para 1 acao: WEGE3.","affected":1,"insertedSymbols":["WEGE3"],"updatedSymbols":[]}',
         },
         message:
           'Fechado, considerei **WEGE3** na **B3** com investimento de **R$ 350,36**.',
@@ -142,7 +156,7 @@ export const getSystemPrompt = (): string => {
           databaseExecutionType: 'insert',
           stocks: [{ symbol: 'AAPL', name: null, exchange: 'NASDAQ', investmentAmount: 340, currency: 'USD' }],
           databaseExecutionResult:
-            '{"operation":"insert","summary":"Cadastro realizado para 1 acao: AAPL.","affected":1,"insertedSymbols":["AAPL"],"updatedSymbols":[]}',
+            '{"operation":"insert","template":"stock_insert","summary":"Cadastro realizado para 1 acao: AAPL.","affected":1,"insertedSymbols":["AAPL"],"updatedSymbols":[]}',
         },
         message:
           'Fechado, adicionei **AAPL** na **NASDAQ** com investimento de **US$ 340**.',
@@ -154,7 +168,7 @@ export const getSystemPrompt = (): string => {
           databaseExecutionType: 'insert',
           stocks: [{ symbol: 'AAPL', name: null, exchange: 'NASDAQ', investmentAmount: 340, currency: 'USD' }],
           databaseExecutionResult:
-            '{"operation":"insert","summary":"Acao ja existente atualizada: AAPL.","affected":1,"insertedSymbols":[],"updatedSymbols":["AAPL"]}',
+            '{"operation":"insert","template":"stock_insert","summary":"Acao ja existente atualizada: AAPL.","affected":1,"insertedSymbols":[],"updatedSymbols":["AAPL"]}',
         },
         message:
           'A **AAPL** ja estava na sua carteira, entao atualizei os dados dela para **NASDAQ** e investimento de **US$ 340**.',
@@ -166,7 +180,7 @@ export const getSystemPrompt = (): string => {
           databaseExecutionType: 'update',
           stocks: [{ symbol: 'AAPL', name: null, exchange: null, investmentAmount: 500, currency: 'USD' }],
           databaseExecutionResult:
-            '{"operation":"update","summary":"Atualizacao realizada para 0 acao(oes).","affected":0,"missingSymbols":["AAPL"]}',
+            '{"operation":"update","template":"stock_update","summary":"Atualizacao realizada para 0 acao(oes).","affected":0,"missingSymbols":["AAPL"]}',
         },
         message:
           'Nao encontrei **AAPL** na sua carteira para atualizar. Quer que eu adicione agora com **US$ 500**? Se sim, me diga a bolsa, por exemplo: NASDAQ.',
@@ -201,11 +215,61 @@ export const getSystemPrompt = (): string => {
           intention: 'stockDatabaseExecution',
           databaseExecutionType: 'insert',
           stocks: [{ symbol: 'TTWO', name: null, exchange: null, investmentAmount: 200 }],
-          missingStockFields: { TTWO: ['name', 'exchange'] },
+          missingStockFields: { TTWO: ['exchange'] },
           result: 'Fluxo de banco selecionado (insert) para: Adicione a acao TTWO por US$200',
         },
         message:
-          'Consigo continuar com **TTWO** e investimento de **US$ 200**. So me diga o nome da empresa ou ativo e a bolsa onde ele e negociado, por exemplo: "Take-Two Interactive, NASDAQ".',
+          'Consigo continuar com **TTWO** e investimento de **US$ 200**. So me diga a bolsa onde ele e negociado, por exemplo: "NASDAQ".',
+      },
+      {
+        question: 'Adicione BTC, Bitcoin, com 250 USDT',
+        workflow: {
+          intention: 'cryptoDatabaseExecution',
+          databaseExecutionType: 'insert',
+          cryptos: [{ symbol: 'BTC', name: 'Bitcoin', investmentAmount: 250, currency: 'USDT' }],
+          databaseExecutionResult:
+            '{"operation":"insert","template":"crypto_insert","summary":"Cadastro realizado para 1 crypto: BTC.","affected":1,"insertedSymbols":["BTC"],"updatedSymbols":[]}',
+        },
+        message:
+          'Adicionei **Bitcoin (BTC)** a sua carteira com investimento de **250 USDT**.',
+      },
+      {
+        question: 'Adicione ETH com 100 USDT',
+        workflow: {
+          intention: 'cryptoDatabaseExecution',
+          databaseExecutionType: 'insert',
+          cryptos: [{ symbol: 'ETH', name: null, investmentAmount: 100, currency: 'USDT' }],
+          missingCryptoFields: { ETH: ['name'] },
+        },
+        message:
+          'Consigo continuar com **ETH** e investimento de **100 USDT**. So me diga o nome da criptomoeda, por exemplo: "Ethereum".',
+      },
+      {
+        question: 'Atualize SOL para 300 USDT',
+        workflow: {
+          intention: 'cryptoDatabaseExecution',
+          databaseExecutionType: 'update',
+          cryptos: [{ symbol: 'SOL', name: null, investmentAmount: 300, currency: 'USDT' }],
+          databaseExecutionResult:
+            '{"operation":"update","template":"crypto_update","summary":"Atualizacao realizada para 0 crypto(oes).","affected":0,"missingSymbols":["SOL"]}',
+        },
+        message:
+          'Nao encontrei **SOL** na sua carteira de criptomoedas para atualizar. Quer que eu adicione agora com **300 USDT**? Se sim, me diga o nome da criptomoeda.',
+      },
+      {
+        question: 'Liste minhas acoes e criptomoedas',
+        workflow: {
+          workflowTasks: [
+            { intention: 'stockDatabaseExecution', route: 'stockDatabaseExecution', databaseExecutionType: 'select' },
+            { intention: 'cryptoDatabaseExecution', route: 'cryptoDatabaseExecution', databaseExecutionType: 'select' },
+          ],
+          workflowExecutionResults: [
+            '{"operation":"select","template":"stock_select","affected":1,"rows":[{"symbol":"AAPL","name":"Apple","exchange":"NASDAQ","investment_amount":340,"currency":"USD"}]}',
+            '{"operation":"select","template":"crypto_select","affected":1,"rows":[{"symbol":"BTC","name":"Bitcoin","investment_amount":250,"currency":"USDT"}]}',
+          ],
+        },
+        message:
+          'Sua carteira tem **AAPL (Apple)** na **NASDAQ**, com **US$ 340** investidos, e **BTC (Bitcoin)**, com **250 USDT** investidos.',
       },
       {
         question: 'Compare o market share atual da Apple e da Microsoft',
@@ -229,7 +293,7 @@ export const getSystemPrompt = (): string => {
           ],
           stocks: [{ symbol: 'TTWO', name: 'Take-Two', exchange: 'NASDAQ', investmentAmount: 200, currency: 'USD' }],
           databaseExecutionResult:
-            '{"operation":"insert","summary":"Cadastro realizado para 1 acao: TTWO.","affected":1,"insertedSymbols":["TTWO"],"updatedSymbols":[]}',
+            '{"operation":"insert","template":"stock_insert","summary":"Cadastro realizado para 1 acao: TTWO.","affected":1,"insertedSymbols":["TTWO"],"updatedSymbols":[]}',
           realTimeMarketShareResult:
             '{"operation":"real_time_quote","summary":"Cotacao em tempo real consultada para TTWO.","quotes":[{"requestedSymbol":"TTWO","symbol":"TTWO","name":"Take-Two Interactive","exchange":"NASDAQ","price":245.5,"changesPercentage":1.23}],"missingSymbols":[]}',
         },
@@ -276,6 +340,12 @@ export const getUserPromptTemplate = (input: {
     country?: string | null;
     currency?: string | null;
   }>;
+  cryptos?: Array<{
+    symbol: string | null;
+    name: string | null;
+    investmentAmount: number | null;
+    currency?: string | null;
+  }>;
   activeUser?: {
     id: number;
     name: string | null;
@@ -285,6 +355,7 @@ export const getUserPromptTemplate = (input: {
   };
   missingUserFields?: string[];
   missingStockFields?: Record<string, string[]>;
+  missingCryptoFields?: Record<string, string[]>;
   userExecutionResult?: string;
   databaseExecutionResult?: string;
   realTimeMarketShareResult?: string;

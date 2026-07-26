@@ -3,6 +3,7 @@ import { EbisuStateSchema } from "./schemas/message.schema.js";
 import type { GraphState } from "./schemas/message.schema.js";
 import { createIdentifyIntentionNode } from "./nodes/identifyIntentionNode.js";
 import { createStockDatabaseExecutionNode } from "./nodes/stockDatabaseExecutionNode.js";
+import { createCryptoDatabaseExecutionNode } from "./nodes/cryptoDatabaseExecutionNode.js";
 import { createGetRealTimeMarketShareNode } from "./nodes/getRealTimeMarketShareNode.js";
 import { createStructuredResponseNode } from "./nodes/structuredResponseNode.js";
 import { OpenRouterService } from "../services/openrouterService.js";
@@ -22,6 +23,8 @@ const routeAfterUserMemory = (state: GraphState) => {
   switch (state.intention) {
     case 'stockDatabaseExecution':
       return 'stockDatabaseExecution';
+    case 'cryptoDatabaseExecution':
+      return 'cryptoDatabaseExecution';
     case 'userDatabaseExecution':
       return 'structuredResponse';
     case 'realTimeMarketShare':
@@ -36,6 +39,9 @@ const routeAfterTaskExecution = (state: GraphState) => {
   if (state.missingStockFields && Object.keys(state.missingStockFields).length > 0) {
     return 'structuredResponse';
   }
+  if (state.missingCryptoFields && Object.keys(state.missingCryptoFields).length > 0) {
+    return 'structuredResponse';
+  }
 
   return getNextWorkflowNode(state);
 };
@@ -48,6 +54,7 @@ export const buildEbisuGraph = (llm: OpenRouterService) => {
     .addNode('identifyIntention', createIdentifyIntentionNode(llm))
     .addNode('userMemory', createUserMemoryNode())
     .addNode('stockDatabaseExecution', createStockDatabaseExecutionNode(llm))
+    .addNode('cryptoDatabaseExecution', createCryptoDatabaseExecutionNode(llm))
     .addNode('getRealTimeMarketShare', createGetRealTimeMarketShareNode())
     .addNode('structuredResponse', createStructuredResponseNode(llm))
 
@@ -56,6 +63,7 @@ export const buildEbisuGraph = (llm: OpenRouterService) => {
     .addConditionalEdges('userMemory', routeAfterUserMemory, TASK_NODE_ROUTE_MAP)
 
     .addConditionalEdges('stockDatabaseExecution', routeAfterTaskExecution, TASK_NODE_ROUTE_MAP)
+    .addConditionalEdges('cryptoDatabaseExecution', routeAfterTaskExecution, TASK_NODE_ROUTE_MAP)
 
     .addConditionalEdges('getRealTimeMarketShare', routeAfterTaskExecution, TASK_NODE_ROUTE_MAP)
     .addEdge('structuredResponse', END);

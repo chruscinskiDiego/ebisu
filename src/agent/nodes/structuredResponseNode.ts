@@ -23,6 +23,13 @@ const stockFieldLabels: Record<string, string> = {
     currency: 'moeda',
 };
 
+const cryptoFieldLabels: Record<string, string> = {
+    symbol: 'simbolo',
+    name: 'nome da criptomoeda',
+    investmentAmount: 'valor investido',
+    currency: 'moeda de cotacao',
+};
+
 const formatUserMissingFields = (fields: string[]): string => {
     const labels = fields.map((field) => userFieldLabels[field] ?? field);
 
@@ -48,6 +55,22 @@ const formatStockMissingFields = (missingStockFields: Record<string, string[]>):
         formattedStocks,
         '',
         'Exemplo: "TTWO, Take-Two Interactive, NASDAQ, US$ 200".',
+    ].join('\n');
+};
+
+const formatCryptoMissingFields = (missingCryptoFields: Record<string, string[]>): string => {
+    const formattedCryptos = Object.entries(missingCryptoFields)
+        .map(([crypto, fields]) => {
+            const labels = fields.map((field) => cryptoFieldLabels[field] ?? field).join(', ');
+            return `- ${crypto}: ${labels}`;
+        })
+        .join('\n');
+
+    return [
+        'Consigo continuar, so preciso completar alguns detalhes da criptomoeda:',
+        formattedCryptos,
+        '',
+        'Exemplo: "BTC, Bitcoin, 200 USDT".',
     ].join('\n');
 };
 
@@ -78,6 +101,9 @@ const formatWorkflowResults = (state: GraphState): string => {
         state.missingStockFields && Object.keys(state.missingStockFields).length > 0
             ? formatStockMissingFields(state.missingStockFields)
             : undefined,
+        state.missingCryptoFields && Object.keys(state.missingCryptoFields).length > 0
+            ? formatCryptoMissingFields(state.missingCryptoFields)
+            : undefined,
     ].filter(Boolean).join('\n\n');
 };
 
@@ -88,6 +114,10 @@ const getFallbackMessage = (state: GraphState): string => {
 
     if (state.missingStockFields && Object.keys(state.missingStockFields).length > 0) {
         return formatStockMissingFields(state.missingStockFields);
+    }
+
+    if (state.missingCryptoFields && Object.keys(state.missingCryptoFields).length > 0) {
+        return formatCryptoMissingFields(state.missingCryptoFields);
     }
 
     if (
@@ -121,9 +151,11 @@ export const createStructuredResponseNode = (llmClient: OpenRouterService) => {
                     completedWorkflowTasks: state.completedWorkflowTasks,
                     databaseExecutionType: state.databaseExecutionType,
                     stocks: state.stocks,
+                    cryptos: state.cryptos,
                     activeUser: state.activeUser,
                     missingUserFields: state.missingUserFields,
                     missingStockFields: state.missingStockFields,
+                    missingCryptoFields: state.missingCryptoFields,
                     userExecutionResult: state.userExecutionResult,
                     databaseExecutionResult: state.databaseExecutionResult,
                     realTimeMarketShareResult: state.realTimeMarketShareResult,
