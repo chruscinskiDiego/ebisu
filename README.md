@@ -1,46 +1,46 @@
-# Ebisu — agente financeiro com LangGraph
+# Ebisu — financial agent with LangGraph
 
-Protótipo de agente em TypeScript que identifica a intenção de uma pergunta, encaminha operações para dados financeiros e organiza a resposta com ajuda de um modelo de linguagem.
+Experimental TypeScript agent that identifies a question's intent, routes operations to financial data sources and uses a language model to structure the response.
 
-## Fluxo do agente
+## Agent workflow
 
-1. Identifica a intenção da mensagem.
-2. Encaminha para consulta de dados financeiros, cotação de mercado ou resposta direta.
-3. Produz a resposta final estruturada.
+1. Identifies the message intent.
+2. Routes to financial database operations, market quotes or a direct response.
+3. Produces a structured final response.
 
-## Tecnologias
+## Technologies
 
-LangGraph, LangChain, TypeScript, Zod, TypeORM e PostgreSQL. A integração de modelos usa OpenRouter; consultas de mercado usam Financial Modeling Prep.
+LangGraph, LangChain, TypeScript, Zod, TypeORM and PostgreSQL. Model integration uses OpenRouter; market queries use Financial Modeling Prep.
 
-## Executar localmente
+## Run locally
 
-Requer Node.js, npm e Docker Compose.
+Requires Node.js, npm and Docker Compose.
 
 ```bash
 npm ci
 cp .env.example .env
-# Configure a chave do modelo, o banco e, para cotações, FMP_API_KEY.
+# Configure the model key, database and FMP_API_KEY for market queries.
 docker compose up -d
 npm start
 ```
 
-O grafo agent é exportado por src/agent/graph.ts e registrado em langgraph.json. Confira o modelo em src/config.ts e se ele suporta as saídas estruturadas utilizadas.
+The agent graph is exported from src/agent/graph.ts and registered in langgraph.json. Check the model in src/config.ts and its support for the structured responses used here.
 
-## Banco de dados
+## Database
 
-O repositório possui uma migration em src/database/migrations/. Defina as opções TYPEORM_* de acordo com seu banco de desenvolvimento; a migration precisa ser aplicada antes de usar tabelas ainda não criadas. Não habilite sincronização automática sobre dados de produção.
+A migration is provided in src/database/migrations/. Set TYPEORM_* options for your development environment and apply the migration before using tables that do not yet exist. Do not enable automatic synchronization on production data.
 
-## Organização
+## Structure
 
-- `src/agent/`: estado, grafo e nós.
-- `src/database/`: entidades, migration e repositórios.
-- `src/prompts/`: instruções dos fluxos.
-- `src/services/`: operações financeiras e cliente de modelos.
+- `src/agent/`: state, graph and nodes.
+- `src/database/`: entities, migration and repositories.
+- `src/prompts/`: workflow instructions.
+- `src/services/`: financial operations and model client.
 
-## Escopo e validação
+## Scope and validation
 
-Projeto experimental, dependente de serviços externos. Use uma base de desenvolvimento ao explorar execução de consultas orientada por modelos. Existem scripts e workflows de testes, mas a árvore atual não contém arquivos .test.ts; a existência da configuração não comprova cobertura. O script test:all também referencia lint:langgraph, que não está definido no manifesto.
+Experimental project with external service dependencies. Use a development database when exploring model-directed queries. Test scripts and workflows exist, but the current tree has no .test.ts files; configuration alone does not establish test coverage. The test:all script also refers to lint:langgraph, which is not defined in the manifest.
 
-## Licença
+## License
 
-Consulte [LICENSE](LICENSE).
+See [LICENSE](LICENSE).
